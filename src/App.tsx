@@ -5,6 +5,7 @@ import SeasonStrip from './components/SeasonStrip'
 import SeasonBrowse from './components/SeasonBrowse'
 import ScheduleView from './components/ScheduleView'
 import AuthPanel from './components/AuthPanel'
+import ThemeToggle from './components/ThemeToggle'
 import { fetchServerState, pushState } from './lib/api'
 import { fetchMediaByIds, searchAnime } from './lib/anilist'
 import { fetchMe, logout as apiLogout, type AuthUser } from './lib/auth'
@@ -321,6 +322,7 @@ export default function App() {
           <p className="tagline">search → pick → your week, mapped</p>
         </div>
         <div className="header-actions">
+          <ThemeToggle />
           {user ? (
             <span className="user-chip" title={`Signed in as ${user.name}`}>
               👤 {user.name}
