@@ -1,5 +1,5 @@
 /**
- * Shared auth helpers for the Pages Functions.
+ * Shared auth helpers for the API handlers.
  *
  * Security posture (as shipped):
  * - Passwords: PBKDF2 (SHA-256, 210k iterations, per-user 16-byte random salt)
@@ -19,7 +19,7 @@ export interface AuthUser {
   name: string
 }
 
-/** Structural slice of D1 as the Pages Functions use it. */
+/** Structural slice of D1 as the API handlers use it. */
 export interface Db {
   prepare(sql: string): {
     bind(...params: (string | number | null)[]): {

@@ -9,10 +9,10 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "api:dev": "wrangler pages dev dist --d1 DB=REPLACE_WITH_REAL_D1_ID --port 8788",
+    "api:dev": "npm run build && wrangler dev --port 8788",
     "d1:migrate:local": "wrangler d1 migrations apply anime-scheduler --local",
     "d1:migrate:remote": "wrangler d1 migrations apply anime-scheduler --remote",
-    "deploy": "npm run build && wrangler pages deploy dist"
+    "deploy": "npm run build && wrangler deploy"
   },
   "dependencies": {
     "react": "^19.0.0",

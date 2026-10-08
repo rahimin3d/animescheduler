@@ -1,13 +1,21 @@
-name = "anime-scheduler"
+name = "animescheduler"
+main = "worker/index.ts"
 compatibility_date = "2026-10-07"
-pages_build_output_dir = "dist"
 
-# Small database for the schedule (Pages + D1, free tier).
+# Built SPA (npm run build → dist). /api/* hits the Worker first; every other
+# unknown path falls back to index.html.
+[assets]
+directory = "./dist"
+binding = "ASSETS"
+not_found_handling = "single-page-application"
+run_worker_first = ["/api/*"]
+
+# Small database for the schedule (D1, free tier).
 # Local dev uses `wrangler d1 migrations apply anime-scheduler --local`; the
 # database_id below is only used for remote deploys — paste the id printed by
 # `npx wrangler d1 create anime-scheduler` (see README).
 [[d1_databases]]
 binding = "DB"
 database_name = "anime-scheduler"
-database_id = "REPLACE_WITH_REAL_D1_ID"
+database_id = "7514a791-fdb0-4d58-9686-054fb90180ec"
 migrations_dir = "migrations"

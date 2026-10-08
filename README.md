@@ -27,9 +27,8 @@ npm run dev      # http://localhost:5173 — pure local, no account needed
 ## Run the cloud API locally (D1)
 
 ```sh
-npm run build
 npm run d1:migrate:local   # creates the local D1 schema in .wrangler/state
-npm run api:dev            # serves the built site + API (/api/state, /api/auth/*) on :8788, D1-backed
+npm run api:dev            # builds, then serves the site + API (/api/state, /api/auth/*) on :8788, D1-backed
 ```
 
 GET /api/state` returns your library in export shape (404 until first push);
@@ -37,14 +36,17 @@ GET /api/state` returns your library in export shape (404 until first push);
 load and offers to pull it (banner), and has a **☁ Push to cloud** button.
 No API running? The app stays local-first and silently ignores the cloud.
 
-## Deploy (free Cloudflare Pages + D1) — one-time, needs your account
+## Deploy (free Cloudflare Workers + D1) — one-time, needs your account
+
+The app deploys as one Worker (`worker/index.ts`): it serves the built SPA from
+`dist/` and routes `/api/*` to the handlers in `functions/`.
 
 ```sh
 npx wrangler login                     # browser OAuth into your Cloudflare account
 npx wrangler d1 create anime-scheduler # prints a database_id
-# paste that id into wrangler.toml (the `database_id` line) and into package.json's api:dev script
+# paste that id into wrangler.toml (the `database_id` line)
 npx wrangler d1 migrations apply anime-scheduler --remote  # create tables in the cloud
-npm run deploy                          # builds + publishes to *.pages.dev
+npm run deploy                          # builds + publishes to *.workers.dev
 ```
 
 After that, `npm run api:dev` and `npm run d1:migrate:remote` work end-to-end

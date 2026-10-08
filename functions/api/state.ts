@@ -1,5 +1,5 @@
 /**
- * Cloudflare Pages Function — the tiny API in front of the D1 database.
+ * Cloudflare Worker route — the tiny API in front of the D1 database.
  *
  * Auth-required: every schedule row belongs to the logged-in user (from the
  * httpOnly session cookie). Guests get 401 and simply don't see the cloud —
