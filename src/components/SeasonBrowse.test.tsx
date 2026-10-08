@@ -88,10 +88,11 @@ describe('SeasonBrowse — season browse page', () => {
       seasonYear: 2026,
     })
     expect('genre' in bodies[0].variables).toBe(false)
+    expect('tag' in bodies[0].variables).toBe(false)
     expect('format' in bodies[0].variables).toBe(false)
   })
 
-  it('shows the isekai genre chip — clicking it refetches with genre_in', async () => {
+  it('Isekai is an AniList tag, not a genre — clicking it refetches with tag_in', async () => {
     const { bodies } = seasonFetchMock([gqlMedia(1)])
     renderBrowse()
     await screen.findByText('Season Show 1')
@@ -99,9 +100,25 @@ describe('SeasonBrowse — season browse page', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Isekai' }))
 
     await waitFor(() => {
-      expect(bodies[bodies.length - 1].variables.genre).toEqual(['Isekai'])
+      expect(bodies[bodies.length - 1].variables.tag).toEqual(['Isekai'])
     })
+    expect('genre' in bodies[bodies.length - 1].variables).toBe(false)
     expect(bodies[bodies.length - 1].variables.page).toBe(1) // filters reset to page 1
+  })
+
+  it('mixing a genre and a tag chip sends each to its own filter', async () => {
+    const { bodies } = seasonFetchMock([gqlMedia(1)])
+    renderBrowse()
+    await screen.findByText('Season Show 1')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Isekai' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Romance' }))
+
+    await waitFor(() => {
+      const vars = bodies[bodies.length - 1].variables
+      expect(vars.genre).toEqual(['Romance'])
+      expect(vars.tag).toEqual(['Isekai'])
+    })
   })
 
   it('format chips segment by anime type (TV / Movie / ONA / OVA / Special)', async () => {

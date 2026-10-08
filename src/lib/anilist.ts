@@ -160,7 +160,14 @@ export async function fetchMediaByIds(ids: number[]): Promise<MediaMeta[]> {
 /* ------------------------- season browse (v2) ------------------------- */
 
 const SEASON_QUERY = `
-  query ($page: Int!, $season: MediaSeason, $seasonYear: Int, $genre: [String], $format: [MediaFormat]) {
+  query (
+    $page: Int!
+    $season: MediaSeason
+    $seasonYear: Int
+    $genre: [String]
+    $tag: [String]
+    $format: [MediaFormat]
+  ) {
     Page(page: $page, perPage: ${SEARCH_PER_PAGE}) {
       pageInfo { hasNextPage total }
       media(
@@ -169,6 +176,7 @@ const SEASON_QUERY = `
         type: ANIME
         sort: POPULARITY_DESC
         genre_in: $genre
+        tag_in: $tag
         format_in: $format
       ) { ${MEDIA_FRAGMENT} }
     }
@@ -178,20 +186,24 @@ const SEASON_QUERY = `
 export interface SeasonFilters {
   season: string
   seasonYear: number
+  /** AniList genres (see ANILIST_GENRES); a show must have all of them. */
   genres: string[]
+  /** AniList tags such as Isekai; a show must have all of them. */
+  tags: string[]
   formats: string[]
 }
 
 /** Per-season catalogue page — "this season" browse for the schedule-keeper. */
 export async function fetchSeason(
   page: number,
-  { season, seasonYear, genres, formats }: SeasonFilters,
+  { season, seasonYear, genres, tags, formats }: SeasonFilters,
 ): Promise<SearchPage> {
   const data = await request<GqlPage>(SEASON_QUERY, {
     page,
     season,
     seasonYear,
     genre: genres.length > 0 ? genres : undefined,
+    tag: tags.length > 0 ? tags : undefined,
     format: formats.length > 0 ? formats : undefined,
   })
   return toSearchPage(data)

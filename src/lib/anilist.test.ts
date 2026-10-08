@@ -118,6 +118,7 @@ describe('Season browse — fetchSeason (v2)', () => {
       season: 'FALL',
       seasonYear: 2026,
       genres: [],
+      tags: [],
       formats: [],
     })
     expect(page.media[0].genres).toEqual(['Action', 'Fantasy'])
@@ -130,20 +131,29 @@ describe('Season browse — fetchSeason (v2)', () => {
       season: 'FALL',
       seasonYear: 2026,
       genre: undefined,
+      tag: undefined,
       format: undefined,
     })
   })
 
-  it('passes selected genres and formats as genre_in / format_in', async () => {
+  it('passes genres, tags and formats as genre_in / tag_in / format_in', async () => {
     const fetchMock = vi.fn().mockResolvedValue(
       jsonResponse({
         data: { Page: { pageInfo: { hasNextPage: false, total: 3 }, media: [] } },
       }),
     )
     vi.stubGlobal('fetch', fetchMock)
-    await fetchSeason(1, { season: 'FALL', seasonYear: 2026, genres: ['Isekai'], formats: ['TV'] })
+    await fetchSeason(1, {
+      season: 'FALL',
+      seasonYear: 2026,
+      genres: ['Romance'],
+      tags: ['Isekai'],
+      formats: ['TV'],
+    })
     const body = JSON.parse(fetchMock.mock.calls[0][1].body)
-    expect(body.variables.genre).toEqual(['Isekai'])
+    expect(body.variables.genre).toEqual(['Romance'])
+    expect(body.variables.tag).toEqual(['Isekai'])
+    expect(body.query).toContain('tag_in: $tag')
     expect(body.variables.format).toEqual(['TV'])
   })
 })

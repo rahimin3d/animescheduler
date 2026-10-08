@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { currentSeason, nextSeason, seasonLabel } from './season'
+import { GENRE_CHIPS, currentSeason, nextSeason, seasonLabel, splitChips } from './season'
 
 describe('currentSeason — anime seasons start Jan/Apr/Jul/Oct', () => {
   it('January → WINTER of the same year', () => {
@@ -44,5 +44,19 @@ describe('seasonLabel', () => {
   it('title-cases for display', () => {
     expect(seasonLabel({ season: 'FALL', year: 2026 })).toBe('Fall 2026')
     expect(seasonLabel({ season: 'WINTER', year: 2027 })).toBe('Winter 2027')
+  })
+})
+describe('splitChips', () => {
+  it('routes AniList genres to genres and everything else to tags', () => {
+    expect(splitChips(['Isekai', 'Romance', 'Magic', 'Action', 'School'])).toEqual({
+      genres: ['Romance', 'Action'],
+      tags: ['Isekai', 'Magic', 'School'],
+    })
+  })
+
+  it('every curated chip lands somewhere', () => {
+    const { genres, tags } = splitChips(GENRE_CHIPS)
+    expect(genres.length + tags.length).toBe(GENRE_CHIPS.length)
+    expect(tags).toEqual(['Isekai', 'Magic', 'School'])
   })
 })

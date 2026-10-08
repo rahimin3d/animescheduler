@@ -41,7 +41,42 @@ export const FORMAT_OPTIONS: { value: AniListFormat; label: string }[] = [
   { value: 'SPECIAL', label: 'Special' },
 ]
 
-/** Curated genre chips — isekai first because that's the fun part. */
+/**
+ * AniList's fixed genre list (GenreCollection). Anything else — Isekai, Magic,
+ * School… — is a *tag* on AniList and must be filtered with tag_in, or it
+ * matches nothing.
+ */
+export const ANILIST_GENRES: ReadonlySet<string> = new Set([
+  'Action',
+  'Adventure',
+  'Comedy',
+  'Drama',
+  'Ecchi',
+  'Fantasy',
+  'Hentai',
+  'Horror',
+  'Mahou Shoujo',
+  'Mecha',
+  'Music',
+  'Mystery',
+  'Psychological',
+  'Romance',
+  'Sci-Fi',
+  'Slice of Life',
+  'Sports',
+  'Supernatural',
+  'Thriller',
+])
+
+/** Split selected chips into AniList genres vs tags (both filters match ALL selected). */
+export function splitChips(chips: string[]): { genres: string[]; tags: string[] } {
+  return {
+    genres: chips.filter((c) => ANILIST_GENRES.has(c)),
+    tags: chips.filter((c) => !ANILIST_GENRES.has(c)),
+  }
+}
+
+/** Curated genre chips — isekai first because that's the fun part. Mixes genres and tags. */
 export const GENRE_CHIPS: string[] = [
   'Isekai',
   'Action',
@@ -57,6 +92,7 @@ export const GENRE_CHIPS: string[] = [
   'Mystery',
   'Horror',
   'Mecha',
+  'Psychological',
   'Sports',
   'Music',
   'Magic',

@@ -1,6 +1,13 @@
 import { useEffect, useState } from 'react'
 import { fetchSeason } from '../lib/anilist'
-import { currentSeason, nextSeason, GENRE_CHIPS, FORMAT_OPTIONS, seasonLabel } from '../lib/season'
+import {
+  currentSeason,
+  nextSeason,
+  splitChips,
+  GENRE_CHIPS,
+  FORMAT_OPTIONS,
+  seasonLabel,
+} from '../lib/season'
 import type { BucketStatus, MediaMeta, StatusMap } from '../types'
 import MediaCard from './MediaCard'
 
@@ -59,7 +66,7 @@ export default function SeasonBrowse({ entries, onPick, onRemove, now }: Props) 
     let cancelled = false
     setState('loading')
     setError(null)
-    fetchSeason(1, { season: target.season, seasonYear: target.year, genres, formats })
+    fetchSeason(1, { season: target.season, seasonYear: target.year, ...splitChips(genres), formats })
       .then((first) => {
         if (cancelled) return
         setResults(first.media)
@@ -84,7 +91,7 @@ export default function SeasonBrowse({ entries, onPick, onRemove, now }: Props) 
       const next = await fetchSeason(page + 1, {
         season: target.season,
         seasonYear: target.year,
-        genres,
+        ...splitChips(genres),
         formats,
       })
       setResults((prev) => {
@@ -122,7 +129,8 @@ export default function SeasonBrowse({ entries, onPick, onRemove, now }: Props) 
             Next · {seasonLabel(next)}
           </button>
         </div>
-        <p className="season-hint">Filter by genre (isekai first, obviously) or format, then add straight to your lists.</p>
+        <p className="season-hint">Filter by genre (isekai first, obviously) or format — shows must match every chip you pick.
+          Then add straight to your lists.</p>
       </header>
 
       <div className="facet-row" role="group" aria-label="Filter by format">
