@@ -1,0 +1,13 @@
+name = "anime-scheduler"
+compatibility_date = "2026-10-07"
+pages_build_output_dir = "dist"
+
+# Small database for the schedule (Pages + D1, free tier).
+# Local dev uses `wrangler d1 migrations apply anime-scheduler --local`; the
+# database_id below is only used for remote deploys — paste the id printed by
+# `npx wrangler d1 create anime-scheduler` (see README).
+[[d1_databases]]
+binding = "DB"
+database_name = "anime-scheduler"
+database_id = "REPLACE_WITH_REAL_D1_ID"
+migrations_dir = "migrations"
