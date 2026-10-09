@@ -209,40 +209,71 @@ export async function fetchSeason(
   return toSearchPage(data)
 }
 
-/* ---------------------------- landing covers ---------------------------- */
+/* ----------------------------- landing art ----------------------------- */
 
 export interface CoverArt {
   id: number
   title: string
   image: string
+  /** AniList's dominant cover colour (#rrggbb), used as a placeholder tint. */
+  color: string | null
 }
 
-const COVERS_QUERY = `
-  query ($season: MediaSeason, $seasonYear: Int, $perPage: Int) {
-    Page(perPage: $perPage) {
+export interface LandingArt {
+  /** AniList's trending-now ranking, most trending first. */
+  trending: CoverArt[]
+  /** The season's most popular shows, for the hero cover wall. */
+  season: CoverArt[]
+}
+
+const LANDING_MEDIA = `
+  id
+  title { romaji english }
+  coverImage { extraLarge large color }
+`
+
+const LANDING_QUERY = `
+  query ($season: MediaSeason, $seasonYear: Int, $trendingCount: Int, $seasonCount: Int) {
+    trending: Page(perPage: $trendingCount) {
+      media(type: ANIME, sort: TRENDING_DESC, isAdult: false) { ${LANDING_MEDIA} }
+    }
+    season: Page(perPage: $seasonCount) {
       media(season: $season, seasonYear: $seasonYear, type: ANIME, sort: POPULARITY_DESC, isAdult: false) {
-        id
-        title { romaji english }
-        coverImage { large }
+        ${LANDING_MEDIA}
       }
     }
   }
 `
 
-/** Large cover art for the season's most popular shows (landing page visual). */
-export async function fetchSeasonCovers(
-  season: string,
-  seasonYear: number,
-  perPage: number,
-): Promise<CoverArt[]> {
-  const data = await request<{
-    Page: {
-      media: { id: number; title: { romaji: string | null; english: string | null }; coverImage: { large: string } }[]
-    }
-  }>(COVERS_QUERY, { season, seasonYear, perPage })
-  return data.Page.media.map((m) => ({
+interface GqlCover {
+  id: number
+  title: { romaji: string | null; english: string | null }
+  coverImage: { extraLarge: string | null; large: string; color: string | null }
+}
+
+/** AniList's `large` is really the medium file; `extraLarge` is crisp at card size. */
+function toCover(m: GqlCover): CoverArt {
+  return {
     id: m.id,
     title: m.title.english ?? m.title.romaji ?? 'Untitled',
-    image: m.coverImage.large,
-  }))
+    image: m.coverImage.extraLarge ?? m.coverImage.large,
+    color: m.coverImage.color,
+  }
+}
+
+/** Trending top-N plus the season's popular covers, in one request (landing page). */
+export async function fetchLandingArt(
+  season: string,
+  seasonYear: number,
+  trendingCount: number,
+  seasonCount: number,
+): Promise<LandingArt> {
+  const data = await request<{ trending: { media: GqlCover[] }; season: { media: GqlCover[] } }>(
+    LANDING_QUERY,
+    { season, seasonYear, trendingCount, seasonCount },
+  )
+  return {
+    trending: data.trending.media.map(toCover),
+    season: data.season.media.map(toCover),
+  }
 }

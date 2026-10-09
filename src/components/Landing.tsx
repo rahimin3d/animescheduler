@@ -1,19 +1,21 @@
-import { useEffect, useState } from 'react'
-import { fetchSeasonCovers, type CoverArt } from '../lib/anilist'
+import { useEffect, useRef, useState } from 'react'
+import { fetchLandingArt, type CoverArt, type LandingArt } from '../lib/anilist'
 import { currentSeason, seasonLabel } from '../lib/season'
 import { BUCKET_LABELS, type BucketStatus } from '../types'
 import ThemeToggle from './ThemeToggle'
 
 interface Props {
-  onStart: () => void
+  /** Enter the app; with a title, the app opens with that show searched. */
+  onStart: (query?: string) => void
   onLogin: () => void
   /** Injectable clock for deterministic tests (defaults to the real date). */
   now?: Date
 }
 
-/** Six covers for the hero, three more for the "watching" tile. */
-const HERO_COVERS = 6
-const COVER_COUNT = 9
+const TRENDING_COUNT = 10
+const SEASON_COUNT = 30
+/** Enough tiles to fill the widest hero wall; covers repeat to reach it. */
+const WALL_TILES = 48
 
 const STEPS: { title: string; body: string }[] = [
   {
@@ -43,39 +45,120 @@ const LISTS: { status: BucketStatus; body: string }[] = [
   { status: 'started-not-finished', body: 'Paused or dropped. No judgement.' },
 ]
 
+/** Decorative wall of season covers behind the hero (HBO-style splash). */
+function CoverWall({ covers }: { covers: CoverArt[] }) {
+  const tiles = Array.from({ length: WALL_TILES }, (_, i) =>
+    covers.length > 0 ? covers[i % covers.length] : null,
+  )
+  return (
+    <div className="cover-wall" aria-hidden="true">
+      <div className="cover-wall-grid">
+        {tiles.map((c, i) => (
+          <div
+            key={i}
+            className={`wall-tile${i % 9 === 2 ? ' is-feature' : ''}`}
+            style={c?.color ? { backgroundColor: c.color } : undefined}
+          >
+            {c && <img src={c.image} alt="" loading={i < 24 ? 'eager' : 'lazy'} />}
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+/** Netflix-style ranked row; each card opens the app searching that show. */
+function TrendingRow({ shows, onOpen }: { shows: CoverArt[]; onOpen: (title: string) => void }) {
+  const rowRef = useRef<HTMLOListElement>(null)
+  const [atStart, setAtStart] = useState(true)
+  const [atEnd, setAtEnd] = useState(false)
+
+  const updateEdges = () => {
+    const row = rowRef.current
+    if (!row) return
+    setAtStart(row.scrollLeft <= 4)
+    setAtEnd(row.scrollLeft + row.clientWidth >= row.scrollWidth - 4)
+  }
+
+  useEffect(updateEdges, [shows])
+
+  const page = (dir: 1 | -1) => {
+    const row = rowRef.current
+    row?.scrollBy({ left: dir * row.clientWidth * 0.8, behavior: 'smooth' })
+  }
+
+  return (
+    <section className="landing-trending" aria-labelledby="trending-title">
+      <div className="trending-head">
+        <h2 id="trending-title">Trending now</h2>
+        <div className="trending-arrows">
+          <button className="arrow-btn" onClick={() => page(-1)} disabled={atStart} aria-label="Scroll back">
+            ‹
+          </button>
+          <button className="arrow-btn" onClick={() => page(1)} disabled={atEnd} aria-label="Scroll forward">
+            ›
+          </button>
+        </div>
+      </div>
+      <ol className="trending-row" ref={rowRef} onScroll={updateEdges}>
+        {shows.map((s, i) => (
+          <li key={s.id} className={i + 1 >= 10 ? 'rank-wide' : undefined}>
+            <span className="rank" aria-hidden="true">
+              {i + 1}
+            </span>
+            <button
+              className="trend-card"
+              onClick={() => onOpen(s.title)}
+              title={s.title}
+              aria-label={`${i + 1}. ${s.title}. Find it in the app`}
+              style={s.color ? { backgroundColor: s.color } : undefined}
+            >
+              <img src={s.image} alt="" loading="lazy" />
+            </button>
+          </li>
+        ))}
+      </ol>
+    </section>
+  )
+}
+
 export default function Landing({ onStart, onLogin, now }: Props) {
   const season = currentSeason(now ?? new Date())
-  const [covers, setCovers] = useState<CoverArt[]>([])
-  const heroCovers = covers.slice(0, HERO_COVERS)
-  const tileCovers = covers.slice(HERO_COVERS)
+  const [art, setArt] = useState<LandingArt | null>(null)
+  const [artFailed, setArtFailed] = useState(false)
 
   useEffect(() => {
     let cancelled = false
-    fetchSeasonCovers(season.season, season.year, COVER_COUNT)
-      .then((c) => {
-        if (!cancelled) setCovers(c)
+    fetchLandingArt(season.season, season.year, TRENDING_COUNT, SEASON_COUNT)
+      .then((a) => {
+        if (!cancelled) setArt(a)
       })
       .catch(() => {
-        /* AniList unreachable: the hero simply renders without artwork */
+        // AniList unreachable: the page still explains the app, just without artwork.
+        if (!cancelled) setArtFailed(true)
       })
     return () => {
       cancelled = true
     }
   }, [season.season, season.year])
 
+  const tileCovers = art?.season.slice(0, 3) ?? []
+
   return (
     <div className="landing">
-      <nav className="landing-nav" aria-label="Landing">
-        <span className="landing-wordmark">Anime Scheduler</span>
-        <div className="landing-nav-actions">
-          <ThemeToggle />
-          <button className="btn" onClick={onLogin}>
-            Log in
-          </button>
-        </div>
-      </nav>
+      <header className="landing-hero">
+        {!artFailed && <CoverWall covers={art?.season ?? []} />}
 
-      <header className={`landing-hero${heroCovers.length > 0 ? ' has-art' : ''}`}>
+        <nav className="landing-nav" aria-label="Landing">
+          <span className="landing-wordmark">Anime Scheduler</span>
+          <div className="landing-nav-actions">
+            <ThemeToggle />
+            <button className="btn" onClick={onLogin}>
+              Log in
+            </button>
+          </div>
+        </nav>
+
         <div className="landing-hero-copy">
           <h1>Your anime week, mapped.</h1>
           <p className="landing-lead">
@@ -83,7 +166,7 @@ export default function Landing({ onStart, onLogin, now }: Props) {
             zone.
           </p>
           <div className="landing-ctas">
-            <button className="btn btn-solid" onClick={onStart}>
+            <button className="btn btn-solid" onClick={() => onStart()}>
               Open the app
             </button>
             <a className="btn" href="#how-it-works">
@@ -91,79 +174,73 @@ export default function Landing({ onStart, onLogin, now }: Props) {
             </a>
           </div>
         </div>
-        {heroCovers.length > 0 && (
-          <figure className="landing-art">
-            <ul className="cover-stack">
-              {heroCovers.map((c, i) => (
-                <li key={c.id} style={{ '--i': i } as React.CSSProperties}>
-                  <img src={c.image} alt={c.title} loading="eager" />
-                </li>
-              ))}
-            </ul>
-            <figcaption>Popular in {seasonLabel(season)}, live from AniList</figcaption>
-          </figure>
-        )}
       </header>
 
-      <section id="how-it-works" className="landing-steps" aria-labelledby="steps-title">
-        <h2 id="steps-title">How it works</h2>
-        <ol>
-          {STEPS.map((s) => (
-            <li key={s.title}>
-              <h3>{s.title}</h3>
-              <p>{s.body}</p>
-            </li>
-          ))}
-        </ol>
-      </section>
+      <div className="landing-inner">
+        {art && art.trending.length > 0 && (
+          <TrendingRow shows={art.trending} onOpen={(title) => onStart(title)} />
+        )}
 
-      <section className="landing-lists" aria-labelledby="lists-title">
-        <h2 id="lists-title">Four lists, one for every show</h2>
-        <div className="list-bento">
-          {LISTS.map((l) => (
-            <article key={l.status} className={`list-tile tile-${l.status}`}>
-              {l.status === 'watching' && tileCovers.length > 0 && (
-                <div className="tile-covers">
-                  {tileCovers.map((c) => (
-                    <img key={c.id} src={c.image} alt={c.title} loading="lazy" />
-                  ))}
-                </div>
-              )}
-              <h3>{BUCKET_LABELS[l.status]}</h3>
-              <p>{l.body}</p>
-            </article>
-          ))}
-        </div>
-      </section>
+        <section id="how-it-works" className="landing-steps" aria-labelledby="steps-title">
+          <h2 id="steps-title">How it works</h2>
+          <ol>
+            {STEPS.map((s) => (
+              <li key={s.title}>
+                <h3>{s.title}</h3>
+                <p>{s.body}</p>
+              </li>
+            ))}
+          </ol>
+        </section>
 
-      <section className="landing-band" aria-label="More features">
-        <div>
-          <h2>Browse the season</h2>
-          <p>
-            See everything airing this season and next. Filter by genre, isekai included, or by
-            format: TV, movie, ONA, OVA or special.
-          </p>
-        </div>
-        <div>
-          <h2>Keep it your way</h2>
-          <p>
-            Use it as a guest and your lists stay in this browser. Make a free account to save them
-            to the cloud and open them on any device.
-          </p>
-        </div>
-      </section>
+        <section className="landing-lists" aria-labelledby="lists-title">
+          <h2 id="lists-title">Four lists, one for every show</h2>
+          <div className="list-bento">
+            {LISTS.map((l) => (
+              <article key={l.status} className={`list-tile tile-${l.status}`}>
+                {l.status === 'watching' && tileCovers.length > 0 && (
+                  <div className="tile-covers">
+                    {tileCovers.map((c) => (
+                      <img key={c.id} src={c.image} alt={c.title} loading="lazy" />
+                    ))}
+                  </div>
+                )}
+                <h3>{BUCKET_LABELS[l.status]}</h3>
+                <p>{l.body}</p>
+              </article>
+            ))}
+          </div>
+        </section>
 
-      <section className="landing-final">
-        <h2>Ready when you are.</h2>
-        <p>No account needed to start.</p>
-        <button className="btn btn-solid" onClick={onStart}>
-          Open the app
-        </button>
-      </section>
+        <section className="landing-band" aria-label="More features">
+          <div>
+            <h2>Browse the season</h2>
+            <p>
+              See everything airing in {seasonLabel(season)} and next season. Filter by genre,
+              isekai included, or by format: TV, movie, ONA, OVA or special.
+            </p>
+          </div>
+          <div>
+            <h2>Keep it your way</h2>
+            <p>
+              Use it as a guest and your lists stay in this browser. Make a free account to save
+              them to the cloud and open them on any device.
+            </p>
+          </div>
+        </section>
 
-      <footer className="app-footer">
-        <p>Catalog and artwork via AniList</p>
-      </footer>
+        <section className="landing-final">
+          <h2>Ready when you are.</h2>
+          <p>No account needed to start.</p>
+          <button className="btn btn-solid" onClick={() => onStart()}>
+            Open the app
+          </button>
+        </section>
+
+        <footer className="app-footer">
+          <p>Catalog, rankings and artwork via AniList</p>
+        </footer>
+      </div>
     </div>
   )
 }

@@ -342,7 +342,14 @@ export default function App() {
     return (
       <>
         <Landing
-          onStart={leaveLanding}
+          onStart={(title) => {
+            leaveLanding()
+            if (title) {
+              // Trending card: land on the week view with that show already searched.
+              setView('week')
+              setQuery(title)
+            }
+          }}
           onLogin={() => {
             leaveLanding()
             setAuthHint(null)

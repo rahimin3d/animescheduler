@@ -2,7 +2,7 @@
  * Shared auth helpers for the API handlers.
  *
  * Security posture (as shipped):
- * - Passwords: PBKDF2 (SHA-256, 210k iterations, per-user 16-byte random salt)
+ * - Passwords: PBKDF2 (SHA-256, 100k iterations, per-user 16-byte random salt)
  *   via WebCrypto — only the hash + salt are ever stored, never the password.
  * - Sessions: opaque 32-byte random token in an httpOnly, SameSite=Lax cookie;
  *   the DB stores only sha256(token), so a leaked sessions table can't be replayed.
@@ -12,7 +12,8 @@
 export const SESSION_COOKIE = 'as_session'
 export const SESSION_DAYS = 30
 const SESSION_SECONDS = SESSION_DAYS * 24 * 60 * 60
-const PBKDF2_ITERATIONS = 210_000
+/** Cloudflare Workers rejects PBKDF2 above 100k iterations (local dev doesn't enforce it). */
+export const PBKDF2_ITERATIONS = 100_000
 
 export interface AuthUser {
   id: string

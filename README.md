@@ -18,7 +18,7 @@ npm run dev      # http://localhost:5173 — pure local, no account needed
 ## Authentication (in-app)
 
 - **Signup / Login / Logout** under the header (`Log in / Sign up`). Each account is stored in D1 (`users` + `sessions`).
-- **Passwords**: hashed with PBKDF2 (SHA-256, 210k iterations, per-user 16-byte random salt) via WebCrypto — never stored or transmitted in plaintext.
+- **Passwords**: hashed with PBKDF2 (SHA-256, 100k iterations, the Cloudflare Workers maximum, per-user 16-byte random salt) via WebCrypto — never stored or transmitted in plaintext.
 - **Sessions**: opaque 32-byte tokens; D1 keeps only `sha256(token)` in an httpOnly, SameSite=Lax cookie (`as_session`), 30-day expiry. `Secure` is only set on `https:`.
 - **Isolation**: every `schedule` row is keyed by `user_id` — friends can't see each other's libraries.
 - **Guest mode**: stays 100% local in `localStorage` (`animeScheduler.entries`); clicking **Push to cloud** while logged out opens the login panel. When logged in, cloud is authoritative (auto-pull on login), saves write to `animeScheduler.entries:<userId>`, and **☁ Push to cloud** writes to D1.

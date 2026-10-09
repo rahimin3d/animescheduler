@@ -450,17 +450,29 @@ describe('App — removing shows (Q12)', () => {
   })
 })
 describe('Landing page', () => {
-  const covers = [
-    { id: 11, title: { romaji: 'Cover Show', english: null }, coverImage: { large: 'https://img/11.jpg' } },
-  ]
+  const cover = (id: number, title: string) => ({
+    id,
+    title: { romaji: title, english: null },
+    coverImage: { extraLarge: `https://img/${id}.jpg`, large: `https://img/m${id}.jpg`, color: '#336699' },
+  })
 
-  /** Guest, no API; GraphQL answers the landing cover query. */
+  /** Guest, no API; GraphQL answers the landing art query, then any search. */
   function mockLandingFetch() {
     const fetchMock = vi.fn().mockImplementation(async (url: string, init?: { body?: string }) => {
       if (!init) return jsonResponse(url.includes('/auth/me') ? { user: null } : { error: 'no API' }, url.includes('/auth/me') ? 200 : 404)
-      return jsonResponse({ data: { Page: { media: covers } } })
+      const vars = JSON.parse(init.body ?? '{}').variables ?? {}
+      if ('search' in vars) {
+        return jsonResponse({ data: { Page: { pageInfo: { hasNextPage: false, total: 0 }, media: [] } } })
+      }
+      return jsonResponse({
+        data: {
+          trending: { media: [cover(21, 'Trend One'), cover(22, 'Trend Two')] },
+          season: { media: [cover(11, 'Cover Show')] },
+        },
+      })
     })
     vi.stubGlobal('fetch', fetchMock)
+    return fetchMock
   }
 
   it('first-time visitors see the landing page with live cover art', async () => {
@@ -468,7 +480,10 @@ describe('Landing page', () => {
     mockLandingFetch()
     render(<App />)
     expect(screen.getByRole('heading', { name: 'Your anime week, mapped.' })).toBeInTheDocument()
-    expect(await screen.findByRole('img', { name: 'Cover Show' })).toHaveAttribute('src', 'https://img/11.jpg')
+    // Trending row, ranked, using the crisp extraLarge art.
+    const first = await screen.findByRole('button', { name: '1. Trend One. Find it in the app' })
+    expect(first.querySelector('img')).toHaveAttribute('src', 'https://img/21.jpg')
+    expect(screen.getByRole('button', { name: '2. Trend Two. Find it in the app' })).toBeInTheDocument()
     expect(screen.queryByRole('tablist', { name: 'Views' })).not.toBeInTheDocument()
   })
 
@@ -488,6 +503,22 @@ describe('Landing page', () => {
     mockLandingFetch()
     render(<App />)
     expect(screen.getByRole('tablist', { name: 'Views' })).toBeInTheDocument()
+  })
+
+  it('a trending card opens the app with that show searched', async () => {
+    localStorage.removeItem(LANDING_SEEN_KEY)
+    const fetchMock = mockLandingFetch()
+    vi.spyOn(window, 'scrollTo').mockImplementation(() => {})
+    render(<App />)
+    fireEvent.click(await screen.findByRole('button', { name: '1. Trend One. Find it in the app' }))
+    expect(screen.getByRole('tablist', { name: 'Views' })).toBeInTheDocument()
+    expect(screen.getByDisplayValue('Trend One')).toBeInTheDocument()
+    await waitFor(() => {
+      const searched = fetchMock.mock.calls.some(([, init]) =>
+        String((init as { body?: string } | undefined)?.body ?? '').includes('"search":"Trend One"'),
+      )
+      expect(searched).toBe(true)
+    })
   })
 
   it('the footer link reopens the landing page', () => {
