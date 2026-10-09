@@ -5,6 +5,8 @@ import { BUCKET_LABELS, type BucketStatus } from '../types'
 import ThemeToggle from './ThemeToggle'
 
 interface Props {
+  /** Logged-in visitors get "Open the app" in the nav instead of "Log in". */
+  signedIn?: boolean
   /** Enter the app; with a title, the app opens with that show searched. */
   onStart: (query?: string) => void
   onLogin: () => void
@@ -122,7 +124,7 @@ function TrendingRow({ shows, onOpen }: { shows: CoverArt[]; onOpen: (title: str
   )
 }
 
-export default function Landing({ onStart, onLogin, now }: Props) {
+export default function Landing({ signedIn = false, onStart, onLogin, now }: Props) {
   const season = currentSeason(now ?? new Date())
   const [art, setArt] = useState<LandingArt | null>(null)
   const [artFailed, setArtFailed] = useState(false)
@@ -153,9 +155,15 @@ export default function Landing({ onStart, onLogin, now }: Props) {
           <span className="landing-wordmark">Anime Scheduler</span>
           <div className="landing-nav-actions">
             <ThemeToggle />
-            <button className="btn" onClick={onLogin}>
-              Log in
-            </button>
+            {signedIn ? (
+              <button className="btn" onClick={() => onStart()}>
+                Open the app
+              </button>
+            ) : (
+              <button className="btn" onClick={onLogin}>
+                Log in
+              </button>
+            )}
           </div>
         </nav>
 

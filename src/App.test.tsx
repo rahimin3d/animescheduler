@@ -1,7 +1,6 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import App from './App'
-import { LANDING_SEEN_KEY } from './lib/landing'
 import { STORAGE_KEY, storageKeyFor } from './lib/statuses'
 import type { StatusEntry, StatusMap } from './types'
 
@@ -92,8 +91,14 @@ const snfEntry = (id: number, episodesDone: number, episodes: number | null): St
 
 beforeEach(() => {
   localStorage.clear()
-  localStorage.setItem(LANDING_SEEN_KEY, '1') // app tests start past the landing page
 })
+
+/** Every visit opens on the landing page; app tests start by stepping inside. */
+function renderApp() {
+  const view = render(<App />)
+  fireEvent.click(screen.getAllByRole('button', { name: 'Open the app' })[0])
+  return view
+}
 
 afterEach(() => {
   vi.unstubAllGlobals()
@@ -102,7 +107,7 @@ afterEach(() => {
 describe('App — first render', () => {
   it('shows the four buckets empty', () => {
     mockSearchFetch([])
-    render(<App />)
+    renderApp()
     expect(screen.getByText("What I've watched")).toBeInTheDocument()
     expect(screen.getByText('What interests me')).toBeInTheDocument()
     expect(screen.getByText("What I'm watching")).toBeInTheDocument()
@@ -112,7 +117,7 @@ describe('App — first render', () => {
   it('renders saved library from localStorage on load', () => {
     mockSearchFetch([])
     seed({ '1': snfEntry(1, 2, 12) })
-    render(<App />)
+    renderApp()
     const bucket = screen.getByLabelText("Started, didn't finish")
     expect(within(bucket).getByText('Show 1')).toBeInTheDocument()
     expect(within(bucket).getByText('2/12 eps')).toBeInTheDocument()
@@ -122,7 +127,7 @@ describe('App — first render', () => {
 describe('App — search flow (D5/D7)', () => {
   it('search → pick a result → it appears in the bucket', async () => {
     mockSearchFetch([media(1), media(2)])
-    render(<App />)
+    renderApp()
 
     fireEvent.change(screen.getByLabelText('Search anime'), {
       target: { value: 'show' },
@@ -140,7 +145,7 @@ describe('App — search flow (D5/D7)', () => {
 
   it('zero results shows a distinct empty state', async () => {
     mockSearchFetch([])
-    render(<App />)
+    renderApp()
     fireEvent.change(screen.getByLabelText('Search anime'), { target: { value: 'zzz' } })
     const empty = await screen.findByText(/No matches for/, undefined, { timeout: 2000 })
     expect(empty).toBeInTheDocument()
@@ -162,7 +167,7 @@ describe('App — search flow (D5/D7)', () => {
     })
     vi.stubGlobal('fetch', fetchMock)
 
-    render(<App />)
+    renderApp()
     const input = screen.getByLabelText('Search anime')
     fireEvent.change(input, { target: { value: 'show' } })
 
@@ -184,7 +189,7 @@ describe('App — +1 auto-advance (D4)', () => {
   it('reaching the final known episode moves to watched and toasts', async () => {
     mockSearchFetch([])
     seed({ '1': snfEntry(1, 1, 2) })
-    render(<App />)
+    renderApp()
 
     fireEvent.click(screen.getByLabelText('Add one episode of Show 1'))
 
@@ -200,7 +205,7 @@ describe('App — +1 auto-advance (D4)', () => {
   it('unknown total: +1 never auto-advances', async () => {
     mockSearchFetch([])
     seed({ '1': snfEntry(1, 50, null) })
-    render(<App />)
+    renderApp()
     fireEvent.click(screen.getByLabelText('Add one episode of Show 1'))
     await waitFor(() => {
       const snf = screen.getByLabelText("Started, didn't finish")
@@ -214,7 +219,7 @@ describe('App — import rejection leaves library untouched (D3)', () => {
   it('shows a visible error and keeps existing entries', async () => {
     mockSearchFetch([])
     seed({ '1': snfEntry(1, 2, 12) })
-    render(<App />)
+    renderApp()
 
     const input = screen.getByLabelText('Import JSON file')
     fireEvent.change(input, {
@@ -233,7 +238,7 @@ describe('App — import rejection leaves library untouched (D3)', () => {
   it('valid import replaces the library', async () => {
     mockSearchFetch([])
     seed({ '1': snfEntry(1, 2, 12) })
-    render(<App />)
+    renderApp()
 
     const exported = JSON.stringify({
       format: 'anime-scheduler-export',
@@ -293,7 +298,7 @@ describe('App — cloud sync + login (Cloudflare D1)', () => {
       login: { user: { id: 'mia', name: 'Mia' } },
       state: cloudEntries({ '7': snfEntry(7, 2, 12) }),
     })
-    render(<App />)
+    renderApp()
 
     fireEvent.click(screen.getByRole('button', { name: 'Log in / Sign up' }))
     await submitAuth('Mia', 'hunter2secret')
@@ -315,7 +320,7 @@ describe('App — cloud sync + login (Cloudflare D1)', () => {
       me: { user: null },
       login: { error: "That username or password didn't match." },
     })
-    render(<App />)
+    renderApp()
 
     fireEvent.click(screen.getByRole('button', { name: 'Log in / Sign up' }))
     await submitAuth('mia', 'wrongpassword1')
@@ -329,7 +334,7 @@ describe('App — cloud sync + login (Cloudflare D1)', () => {
       me: { user: null },
       signup: { user: { id: 'mia', name: 'Mia' } },
     })
-    render(<App />)
+    renderApp()
 
     fireEvent.click(screen.getByRole('button', { name: 'Log in / Sign up' }))
     fireEvent.click(screen.getByRole('button', { name: 'Create an account' }))
@@ -342,7 +347,7 @@ describe('App — cloud sync + login (Cloudflare D1)', () => {
 
   it('guest clicking Push opens the login panel and sends nothing', async () => {
     const fetchMock = mockSearchFetch([])
-    render(<App />)
+    renderApp()
 
     fireEvent.click(screen.getByRole('button', { name: '☁ Push to cloud' }))
     expect(await screen.findByRole('dialog', undefined, { timeout: 2000 })).toBeInTheDocument()
@@ -370,7 +375,7 @@ describe('App — cloud sync + login (Cloudflare D1)', () => {
       }),
     )
 
-    render(<App />)
+    renderApp()
 
     // Session restored on load → cloud library auto-pulled → buckets populated.
     await waitFor(() => {
@@ -393,7 +398,7 @@ describe('App — cloud sync + login (Cloudflare D1)', () => {
       me: { user: { id: 'mia', name: 'Mia' } },
       state: cloudEntries({ '7': snfEntry(7, 9, 12) }),
     })
-    render(<App />)
+    renderApp()
 
     // Logged in with Mia's cloud library.
     await waitFor(() => {
@@ -416,7 +421,7 @@ describe('App — cloud sync + login (Cloudflare D1)', () => {
 describe('App — removing shows (Q12)', () => {
   it('a picked search card gains a Remove that clears the bucket', async () => {
     mockSearchFetch([media(1)])
-    render(<App />)
+    renderApp()
 
     fireEvent.change(screen.getByLabelText('Search anime'), { target: { value: 'show' } })
     const addButton = await screen.findByLabelText('Add Show 1 to What interests me', undefined, {
@@ -438,7 +443,7 @@ describe('App — removing shows (Q12)', () => {
   it('Remove on a bucket card clears that entry', async () => {
     mockSearchFetch([])
     seed({ '1': snfEntry(1, 2, 12) })
-    render(<App />)
+    renderApp()
 
     const bucket = screen.getByLabelText("Started, didn't finish")
     expect(within(bucket).getByText('Show 1')).toBeInTheDocument()
@@ -476,7 +481,6 @@ describe('Landing page', () => {
   }
 
   it('first-time visitors see the landing page with live cover art', async () => {
-    localStorage.removeItem(LANDING_SEEN_KEY)
     mockLandingFetch()
     render(<App />)
     expect(screen.getByRole('heading', { name: 'Your anime week, mapped.' })).toBeInTheDocument()
@@ -487,28 +491,30 @@ describe('Landing page', () => {
     expect(screen.queryByRole('tablist', { name: 'Views' })).not.toBeInTheDocument()
   })
 
-  it('"Open the app" enters the app and is remembered', async () => {
-    localStorage.removeItem(LANDING_SEEN_KEY)
+  it('"Open the app" enters the app', () => {
     mockLandingFetch()
-    vi.spyOn(window, 'scrollTo').mockImplementation(() => {})
     render(<App />)
     fireEvent.click(screen.getAllByRole('button', { name: 'Open the app' })[0])
     expect(screen.getByRole('tablist', { name: 'Views' })).toBeInTheDocument()
-    expect(localStorage.getItem(LANDING_SEEN_KEY)).toBe('1')
   })
 
-  it('returning visitors with a saved library skip the landing page', () => {
-    localStorage.removeItem(LANDING_SEEN_KEY)
+  it('every visit opens on the landing page, even with a saved library', () => {
     seed({ '1': snfEntry(1, 2, 12) })
     mockLandingFetch()
     render(<App />)
-    expect(screen.getByRole('tablist', { name: 'Views' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Your anime week, mapped.' })).toBeInTheDocument()
+    expect(screen.queryByRole('tablist', { name: 'Views' })).not.toBeInTheDocument()
+  })
+
+  it('logged-in visitors still see the landing page, with "Open the app" in place of "Log in"', async () => {
+    mockSearchFetch([], { me: { user: { id: 'mia', name: 'Mia' } } })
+    render(<App />)
+    await waitFor(() => expect(screen.getAllByRole('button', { name: 'Open the app' })).toHaveLength(3))
+    expect(screen.queryByRole('button', { name: 'Log in' })).not.toBeInTheDocument()
   })
 
   it('a trending card opens the app with that show searched', async () => {
-    localStorage.removeItem(LANDING_SEEN_KEY)
     const fetchMock = mockLandingFetch()
-    vi.spyOn(window, 'scrollTo').mockImplementation(() => {})
     render(<App />)
     fireEvent.click(await screen.findByRole('button', { name: '1. Trend One. Find it in the app' }))
     expect(screen.getByRole('tablist', { name: 'Views' })).toBeInTheDocument()
@@ -523,7 +529,7 @@ describe('Landing page', () => {
 
   it('the footer link reopens the landing page', () => {
     mockLandingFetch()
-    render(<App />)
+    renderApp()
     fireEvent.click(screen.getByRole('button', { name: 'What is Anime Scheduler?' }))
     expect(screen.getByRole('heading', { name: 'Your anime week, mapped.' })).toBeInTheDocument()
   })

@@ -10,7 +10,6 @@ import Landing from './components/Landing'
 import { fetchServerState, pushState } from './lib/api'
 import { fetchMediaByIds, searchAnime } from './lib/anilist'
 import { fetchMe, logout as apiLogout, type AuthUser } from './lib/auth'
-import { hasSeenLanding, markLandingSeen } from './lib/landing'
 import { buildWeek, scheduleMembers } from './lib/schedule'
 import {
   exportEntries,
@@ -33,12 +32,9 @@ export default function App() {
   const [entries, setEntries] = useState<StatusMap>(initial.entries)
   const [storageNotice, setStorageNotice] = useState<string | null>(initial.notice)
   const [view, setView] = useState<'week' | 'season'>('week')
-  // First-time visitors (nothing saved, never dismissed it) get the landing page.
-  const [showLanding, setShowLanding] = useState(
-    () => !hasSeenLanding() && Object.keys(initial.entries).length === 0,
-  )
+  // Every visit opens on the landing page; "Open the app" goes in.
+  const [showLanding, setShowLanding] = useState(true)
   const leaveLanding = () => {
-    markLandingSeen()
     setShowLanding(false)
     window.scrollTo(0, 0)
   }
@@ -69,7 +65,6 @@ export default function App() {
     fetchMe().then((u) => {
       if (cancelled) return
       setUser(u)
-      if (u) setShowLanding(false)
     })
     return () => {
       cancelled = true
@@ -342,6 +337,7 @@ export default function App() {
     return (
       <>
         <Landing
+          signedIn={user !== null}
           onStart={(title) => {
             leaveLanding()
             if (title) {
