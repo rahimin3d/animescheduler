@@ -208,3 +208,41 @@ export async function fetchSeason(
   })
   return toSearchPage(data)
 }
+
+/* ---------------------------- landing covers ---------------------------- */
+
+export interface CoverArt {
+  id: number
+  title: string
+  image: string
+}
+
+const COVERS_QUERY = `
+  query ($season: MediaSeason, $seasonYear: Int, $perPage: Int) {
+    Page(perPage: $perPage) {
+      media(season: $season, seasonYear: $seasonYear, type: ANIME, sort: POPULARITY_DESC, isAdult: false) {
+        id
+        title { romaji english }
+        coverImage { large }
+      }
+    }
+  }
+`
+
+/** Large cover art for the season's most popular shows (landing page visual). */
+export async function fetchSeasonCovers(
+  season: string,
+  seasonYear: number,
+  perPage: number,
+): Promise<CoverArt[]> {
+  const data = await request<{
+    Page: {
+      media: { id: number; title: { romaji: string | null; english: string | null }; coverImage: { large: string } }[]
+    }
+  }>(COVERS_QUERY, { season, seasonYear, perPage })
+  return data.Page.media.map((m) => ({
+    id: m.id,
+    title: m.title.english ?? m.title.romaji ?? 'Untitled',
+    image: m.coverImage.large,
+  }))
+}

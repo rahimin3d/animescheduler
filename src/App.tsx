@@ -6,9 +6,11 @@ import SeasonBrowse from './components/SeasonBrowse'
 import ScheduleView from './components/ScheduleView'
 import AuthPanel from './components/AuthPanel'
 import ThemeToggle from './components/ThemeToggle'
+import Landing from './components/Landing'
 import { fetchServerState, pushState } from './lib/api'
 import { fetchMediaByIds, searchAnime } from './lib/anilist'
 import { fetchMe, logout as apiLogout, type AuthUser } from './lib/auth'
+import { hasSeenLanding, markLandingSeen } from './lib/landing'
 import { buildWeek, scheduleMembers } from './lib/schedule'
 import {
   exportEntries,
@@ -31,6 +33,15 @@ export default function App() {
   const [entries, setEntries] = useState<StatusMap>(initial.entries)
   const [storageNotice, setStorageNotice] = useState<string | null>(initial.notice)
   const [view, setView] = useState<'week' | 'season'>('week')
+  // First-time visitors (nothing saved, never dismissed it) get the landing page.
+  const [showLanding, setShowLanding] = useState(
+    () => !hasSeenLanding() && Object.keys(initial.entries).length === 0,
+  )
+  const leaveLanding = () => {
+    markLandingSeen()
+    setShowLanding(false)
+    window.scrollTo(0, 0)
+  }
 
   /* ------------------------------- toast ------------------------------- */
   const [toast, setToast] = useState<string | null>(null)
@@ -56,7 +67,9 @@ export default function App() {
   useEffect(() => {
     let cancelled = false
     fetchMe().then((u) => {
-      if (!cancelled) setUser(u)
+      if (cancelled) return
+      setUser(u)
+      if (u) setShowLanding(false)
     })
     return () => {
       cancelled = true
@@ -314,6 +327,33 @@ export default function App() {
     if (scheduleError) setSchedTick((t) => t + 1)
   }
 
+  const authPanel = authOpen && (
+    <AuthPanel
+      initialHint={authHint}
+      onDone={(u) => {
+        setUser(u)
+        setAuthOpen(false)
+      }}
+      onClose={() => setAuthOpen(false)}
+    />
+  )
+
+  if (showLanding) {
+    return (
+      <>
+        <Landing
+          onStart={leaveLanding}
+          onLogin={() => {
+            leaveLanding()
+            setAuthHint(null)
+            setAuthOpen(true)
+          }}
+        />
+        {authPanel}
+      </>
+    )
+  }
+
   return (
     <div className="app">
       <header className="app-header">
@@ -461,18 +501,14 @@ export default function App() {
           Local-first · guests stay in the browser · log in to save your list to Cloudflare D1 ·
           catalog via AniList GraphQL
         </p>
+        <p>
+          <button className="footer-link" onClick={() => setShowLanding(true)}>
+            What is Anime Scheduler?
+          </button>
+        </p>
       </footer>
 
-      {authOpen && (
-        <AuthPanel
-          initialHint={authHint}
-          onDone={(u) => {
-            setUser(u)
-            setAuthOpen(false)
-          }}
-          onClose={() => setAuthOpen(false)}
-        />
-      )}
+      {authPanel}
 
       {toast && (
         <div className="toast" role="status">

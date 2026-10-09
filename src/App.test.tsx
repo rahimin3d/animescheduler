@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import App from './App'
+import { LANDING_SEEN_KEY } from './lib/landing'
 import { STORAGE_KEY, storageKeyFor } from './lib/statuses'
 import type { StatusEntry, StatusMap } from './types'
 
@@ -91,6 +92,7 @@ const snfEntry = (id: number, episodesDone: number, episodes: number | null): St
 
 beforeEach(() => {
   localStorage.clear()
+  localStorage.setItem(LANDING_SEEN_KEY, '1') // app tests start past the landing page
 })
 
 afterEach(() => {
@@ -445,5 +447,53 @@ describe('App — removing shows (Q12)', () => {
     await waitFor(() => {
       expect(within(bucket).queryByText('Show 1')).not.toBeInTheDocument()
     })
+  })
+})
+describe('Landing page', () => {
+  const covers = [
+    { id: 11, title: { romaji: 'Cover Show', english: null }, coverImage: { large: 'https://img/11.jpg' } },
+  ]
+
+  /** Guest, no API; GraphQL answers the landing cover query. */
+  function mockLandingFetch() {
+    const fetchMock = vi.fn().mockImplementation(async (url: string, init?: { body?: string }) => {
+      if (!init) return jsonResponse(url.includes('/auth/me') ? { user: null } : { error: 'no API' }, url.includes('/auth/me') ? 200 : 404)
+      return jsonResponse({ data: { Page: { media: covers } } })
+    })
+    vi.stubGlobal('fetch', fetchMock)
+  }
+
+  it('first-time visitors see the landing page with live cover art', async () => {
+    localStorage.removeItem(LANDING_SEEN_KEY)
+    mockLandingFetch()
+    render(<App />)
+    expect(screen.getByRole('heading', { name: 'Your anime week, mapped.' })).toBeInTheDocument()
+    expect(await screen.findByRole('img', { name: 'Cover Show' })).toHaveAttribute('src', 'https://img/11.jpg')
+    expect(screen.queryByRole('tablist', { name: 'Views' })).not.toBeInTheDocument()
+  })
+
+  it('"Open the app" enters the app and is remembered', async () => {
+    localStorage.removeItem(LANDING_SEEN_KEY)
+    mockLandingFetch()
+    vi.spyOn(window, 'scrollTo').mockImplementation(() => {})
+    render(<App />)
+    fireEvent.click(screen.getAllByRole('button', { name: 'Open the app' })[0])
+    expect(screen.getByRole('tablist', { name: 'Views' })).toBeInTheDocument()
+    expect(localStorage.getItem(LANDING_SEEN_KEY)).toBe('1')
+  })
+
+  it('returning visitors with a saved library skip the landing page', () => {
+    localStorage.removeItem(LANDING_SEEN_KEY)
+    seed({ '1': snfEntry(1, 2, 12) })
+    mockLandingFetch()
+    render(<App />)
+    expect(screen.getByRole('tablist', { name: 'Views' })).toBeInTheDocument()
+  })
+
+  it('the footer link reopens the landing page', () => {
+    mockLandingFetch()
+    render(<App />)
+    fireEvent.click(screen.getByRole('button', { name: 'What is Anime Scheduler?' }))
+    expect(screen.getByRole('heading', { name: 'Your anime week, mapped.' })).toBeInTheDocument()
   })
 })
