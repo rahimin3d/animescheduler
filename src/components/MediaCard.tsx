@@ -1,3 +1,4 @@
+import { useId, useState } from 'react'
 import type { BucketStatus, MediaMeta, StatusMap } from '../types'
 import { BUCKET_LABELS, BUCKET_STATUSES } from '../types'
 
@@ -6,6 +7,35 @@ const SHORT_LABEL: Record<BucketStatus, string> = {
   interested: 'Interested',
   watching: 'Watching',
   'started-not-finished': 'Started',
+}
+
+/** Short synopses fit in the clamp; only longer ones get a More/Less toggle. */
+const SYNOPSIS_TOGGLE_AT = 160
+
+/** Clamped to three lines; "More" expands it into its full paragraphs. */
+function Synopsis({ text, title }: { text: string; title: string }) {
+  const [open, setOpen] = useState(false)
+  const id = useId()
+  const paragraphs = text.split(/\n\n+/)
+  const long = text.length > SYNOPSIS_TOGGLE_AT
+  return (
+    <div className="synopsis">
+      <div id={id} className={open ? 'synopsis-full' : 'synopsis-clamp'}>
+        {open ? paragraphs.map((p, i) => <p key={i}>{p}</p>) : <p>{paragraphs.join(' ')}</p>}
+      </div>
+      {long && (
+        <button
+          className="synopsis-toggle"
+          aria-expanded={open}
+          aria-controls={id}
+          aria-label={`${open ? 'Hide' : 'Show'} the full synopsis of ${title}`}
+          onClick={() => setOpen((o) => !o)}
+        >
+          {open ? 'Less' : 'More'}
+        </button>
+      )}
+    </div>
+  )
 }
 
 interface Props {
@@ -46,6 +76,7 @@ export default function MediaCard({ meta, entries, onPick, onRemove }: Props) {
         {meta.genres && meta.genres.length > 0 && (
           <p className="result-genres">{meta.genres.slice(0, 3).join(' · ')}</p>
         )}
+        {meta.synopsis && <Synopsis text={meta.synopsis} title={meta.title} />}
         {current && (
           <div className="picked-row">
             <p className="picked-badge">in: {BUCKET_LABELS[current.status]}</p>

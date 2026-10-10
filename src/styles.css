@@ -251,6 +251,45 @@ body {
   opacity: 0.85;
 }
 
+.synopsis {
+  margin: 2px 0;
+  font-size: 0.8rem;
+  line-height: 1.45;
+  color: var(--text);
+  opacity: 0.86;
+}
+
+.synopsis p {
+  margin: 0;
+}
+
+.synopsis-clamp p {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+}
+
+.synopsis-full {
+  display: grid;
+  gap: 8px;
+}
+
+.synopsis-toggle {
+  font: inherit;
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: var(--accent);
+  background: none;
+  border: none;
+  padding: 2px 0 0;
+  cursor: pointer;
+}
+
+.synopsis-toggle:hover {
+  text-decoration: underline;
+}
+
 /* ------------------------------- header ------------------------------- */
 .app-header {
   display: flex;
@@ -485,6 +524,8 @@ body {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
   gap: 12px;
+  /* An expanded synopsis grows its own card, not the whole row. */
+  align-items: start;
 }
 
 .result-card {

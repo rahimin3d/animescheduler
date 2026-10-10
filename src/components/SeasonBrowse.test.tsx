@@ -27,6 +27,7 @@ const gqlMedia = (id: number) => ({
   status: 'RELEASING',
   genres: ['Action'],
   averageScore: 82,
+  description: null as string | null,
   nextAiringEpisode: { episode: 5, airingAt: 1_800_000_000_000 },
 })
 
@@ -204,5 +205,25 @@ describe('SeasonBrowse — season browse page', () => {
       entries: { '1': { status: 'watching', episodesDone: 4, updatedAt: '', meta: metaOf(1) } },
     })
     expect(await screen.findByText('in: What I\'m watching')).toBeInTheDocument()
+  })
+
+  it('cards show the synopsis clamped, with More / Less for long ones', async () => {
+    const long = 'A long first paragraph about the show. '.repeat(6).trim()
+    seasonFetchMock([{ ...gqlMedia(1), description: `${long}<br><br>Second paragraph.` }, gqlMedia(2)])
+    renderBrowse()
+    await screen.findByText('Season Show 1')
+
+    expect(screen.getByText(`${long} Second paragraph.`)).toBeInTheDocument()
+    const toggle = screen.getByRole('button', { name: 'Show the full synopsis of Season Show 1' })
+    expect(toggle).toHaveAttribute('aria-expanded', 'false')
+
+    fireEvent.click(toggle)
+    expect(screen.getByText('Second paragraph.')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Hide the full synopsis of Season Show 1' })).toHaveAttribute(
+      'aria-expanded',
+      'true',
+    )
+    // Show 2 has no description: no synopsis block, no toggle.
+    expect(screen.queryByRole('button', { name: /synopsis of Season Show 2/ })).not.toBeInTheDocument()
   })
 })

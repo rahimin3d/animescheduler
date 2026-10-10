@@ -66,6 +66,7 @@ const MEDIA_FRAGMENT = `
   status
   genres
   averageScore
+  description(asHtml: false)
   nextAiringEpisode { episode airingAt }
 `
 
@@ -80,7 +81,46 @@ interface GqlMedia {
   status: string
   genres: string[] | null
   averageScore: number | null
+  description?: string | null
   nextAiringEpisode: { episode: number; airingAt: number } | null
+}
+
+const ENTITIES: Record<string, string> = {
+  amp: '&',
+  lt: '<',
+  gt: '>',
+  quot: '"',
+  apos: "'",
+  nbsp: ' ',
+  mdash: '-',
+  ndash: '-',
+  hellip: '...',
+  rsquo: "'",
+  lsquo: "'",
+  rdquo: '"',
+  ldquo: '"',
+}
+
+/**
+ * AniList's "plain" description still carries <br>, <i>, entities and "(Source: …)"
+ * credits (not always last: a "Note:" can follow). Reduce it to plain paragraphs
+ * separated by blank lines.
+ */
+export function cleanSynopsis(raw: string | null | undefined): string | null {
+  if (!raw) return null
+  const text = raw
+    .replace(/\r/g, '')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&#(\d+);/g, (_, n: string) => String.fromCharCode(Number(n)))
+    .replace(/&([a-z]+);/gi, (m, name: string) => ENTITIES[name.toLowerCase()] ?? m)
+    .replace(/\(Source:[^)]*\)/gi, '')
+    .split('\n')
+    .map((line) => line.trim())
+    .join('\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
+  return text || null
 }
 
 export function toMeta(m: GqlMedia): MediaMeta {
@@ -97,6 +137,7 @@ export function toMeta(m: GqlMedia): MediaMeta {
       : null,
     genres: m.genres ?? [],
     averageScore: m.averageScore ?? null,
+    synopsis: cleanSynopsis(m.description),
   }
 }
 

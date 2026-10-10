@@ -32,6 +32,8 @@ export interface MediaMeta {
   genres?: string[]
   /** AniList average score 0-100 (season-browse badge; older snapshots may lack it). */
   averageScore?: number | null
+  /** Plain-text synopsis, paragraphs split by blank lines (older snapshots lack it). */
+  synopsis?: string | null
 }
 
 export interface StatusEntry {

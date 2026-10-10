@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   AniListError,
   ID_CHUNK_SIZE,
+  cleanSynopsis,
   fetchMediaByIds,
   fetchSeason,
   request,
@@ -197,6 +198,7 @@ describe('toMeta mapping', () => {
       nextAiring: { episode: 3, airingAt: 1_800_000_000_000 },
       genres: ['Action', 'Fantasy'],
       averageScore: 78,
+      synopsis: null, // fixture has no description
     })
   })
 
@@ -227,5 +229,45 @@ describe('AniListError', () => {
     expect(e.kind).toBe('network')
     expect(e.message).toBe('boom')
     expect(e.name).toBe('AniListError')
+  })
+})
+
+describe('cleanSynopsis', () => {
+  it('turns AniList markup into plain paragraphs and drops the source credit', () => {
+    const raw =
+      'Maomao returns to the <i>pleasure district</i>.\n<br><br>\nShe senses an &quot;anomaly&quot; &amp; investigates.<br><br>\r\n(Source: Crunchyroll)'
+    expect(cleanSynopsis(raw)).toBe(
+      'Maomao returns to the pleasure district.\n\nShe senses an "anomaly" & investigates.',
+    )
+  })
+
+  it('drops a source credit even when a note follows it', () => {
+    expect(cleanSynopsis('A legend rises. (Source: Tapas, edited)<br><br>Note: Streams weekly.')).toBe(
+      'A legend rises.\n\nNote: Streams weekly.',
+    )
+  })
+
+  it('decodes numeric entities and returns null for empty text', () => {
+    expect(cleanSynopsis('It&#039;s here')).toBe("It's here")
+    expect(cleanSynopsis(null)).toBeNull()
+    expect(cleanSynopsis('<br><br>')).toBeNull()
+  })
+
+  it('toMeta carries the cleaned synopsis', () => {
+    const m = toMeta({
+      id: 1,
+      title: { romaji: 'X', english: null },
+      coverImage: { large: 'L', medium: 'M' },
+      episodes: 12,
+      format: 'TV',
+      season: 'FALL',
+      seasonYear: 2026,
+      status: 'RELEASING',
+      genres: [],
+      averageScore: null,
+      description: 'One.<br>Two.',
+      nextAiringEpisode: null,
+    })
+    expect(m.synopsis).toBe('One.\nTwo.')
   })
 })
